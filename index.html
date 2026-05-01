@@ -99,7 +99,7 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 /* canvas */
 .mb-canvas-wrap{flex:1;overflow:auto;background:#e8ebf1;padding:20px;cursor:grab}
 .mb-canvas-wrap.panning{cursor:grabbing}
-.mb-canvas{width:1800px;height:1100px;position:relative;background-color:#f7f8fb;background-image:linear-gradient(#e4e7ee 1px,transparent 1px),linear-gradient(90deg,#e4e7ee 1px,transparent 1px);background-size:24px 24px;border:1px solid #d7dce5;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.65)}
+.mb-canvas{position:relative;background-color:#f7f8fb;background-image:linear-gradient(#e4e7ee 1px,transparent 1px),linear-gradient(90deg,#e4e7ee 1px,transparent 1px);background-size:24px 24px;border:1px solid #d7dce5;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.65);transform-origin:0 0}
 .model-workspace{position:relative;width:100%;height:100%;overflow:hidden}
 
 /* ---- BLOCK ---- */
@@ -199,6 +199,14 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
 .ins-field input{font-size:12.5px;padding:7px 9px}
 .ins-meta{font-size:12px;color:var(--text2);line-height:1.6;background:#f8f9fb;border:1px solid var(--border);border-radius:6px;padding:8px 10px}
 .btn:disabled{opacity:.45;cursor:not-allowed}
+
+/* import choice modal */
+.imp-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:600;background:rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
+.imp-modal{background:#fff;border-radius:12px;padding:32px 36px 24px;min-width:380px;max-width:440px;box-shadow:0 8px 32px rgba(0,0,0,.18);text-align:center}
+.imp-modal h2{font-size:19px;margin-bottom:6px}
+.imp-modal .imp-desc{font-size:13px;color:var(--text2);margin-bottom:22px;line-height:1.5}
+.imp-modal .imp-btns{display:flex;gap:10px;justify-content:center}
+.imp-modal .imp-btns .btn{min-width:90px;justify-content:center}
 </style>
 </head>
 <body>
@@ -314,6 +322,12 @@ input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);
     <div class="mb-actions">
       <button class="btn btn-o btn-sm" id="btn-undo" onclick="undoHistory()" title="撤销 Ctrl+Z">↶ 撤销</button>
       <button class="btn btn-o btn-sm" id="btn-redo" onclick="redoHistory()" title="重做 Ctrl+Y">↷ 重做</button>
+      <span style="color:var(--border);margin:0 2px">|</span>
+      <button class="btn btn-o btn-sm" onclick="zoomOut()" title="缩小">−</button>
+      <span style="font-size:12px;font-weight:700;min-width:42px;text-align:center" id="zoom-label">100%</span>
+      <button class="btn btn-o btn-sm" onclick="zoomIn()" title="放大">+</button>
+      <button class="btn btn-o btn-sm" onclick="zoomReset()" title="重置缩放">1:1</button>
+      <span style="color:var(--border);margin:0 2px">|</span>
       <button class="btn btn-o btn-sm" onclick="exportModel()">导出 JSON</button>
       <button class="btn btn-o btn-sm" onclick="importModel()">导入 JSON</button>
       <button class="btn btn-d btn-sm" onclick="clearModel()">清空</button>
@@ -437,6 +451,16 @@ let connectFrom = null; // { blockId, side:'out' }
 let historyStack = [];
 let historyIndex = -1;
 const HISTORY_LIMIT = 80;
+
+// ---- Zoom ----
+let zoomLevel = 1;
+const ZOOM_MIN = 0.25, ZOOM_MAX = 3.0, ZOOM_STEP = 0.15;
+
+// ---- Canvas size ----
+let canvasW = 4000, canvasH = 3000;
+const CANVAS_MIN_W = 2000, CANVAS_MIN_H = 1500;
+const CANVAS_EXPAND = 1500;
+const EDGE_THRESHOLD = 500;
 
 // ---- Context menu ----
 let ctxBlockId = null;
@@ -592,8 +616,8 @@ function connectionAnchor(blockId, side) {
   const cr = canvas.getBoundingClientRect();
   const r = el.getBoundingClientRect();
   return {
-    x: (side === 'out' ? r.right : r.left) - cr.left,
-    y: r.top + r.height / 2 - cr.top
+    x: ((side === 'out' ? r.right : r.left) - cr.left) / zoomLevel,
+    y: (r.top + r.height / 2 - cr.top) / zoomLevel
   };
 }
 
@@ -651,6 +675,7 @@ function scheduleConnectionRender() {
 function drawTempConnection(clientX, clientY) {
   const el = blockElement(connectFrom.blockId);
   if (!el) return;
+  // tempConn SVG is in viewport coordinates (position:fixed), not inside the scaled canvas
   const r = el.getBoundingClientRect();
   const from = { x: r.right, y: r.top + r.height / 2 };
   const to = { x: clientX, y: clientY };
@@ -736,7 +761,15 @@ function renderInspector() {
           <label>模型名称</label>
           <input id="ins-model-name" value="${escapeAttr(model.name || '')}" placeholder="Untitled Model">
         </div>
-        <div class="ins-meta">顶层节点：${model.children.length}<br>顶层连接：${(model.connections || []).length}<br>容器内部按从上到下顺序执行。</div>
+        <div class="ins-meta">顶层节点：${model.children.length}<br>顶层连接：${(model.connections || []).length}</div>
+      </div>
+      <div class="ins-section">
+        <h4>画布尺寸</h4>
+        <div class="f-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0">
+          <div class="ins-field"><label>宽度</label><input id="ins-canvas-w" type="number" value="${canvasW}" min="${CANVAS_MIN_W}" step="100"></div>
+          <div class="ins-field"><label>高度</label><input id="ins-canvas-h" type="number" value="${canvasH}" min="${CANVAS_MIN_H}" step="100"></div>
+        </div>
+        <button class="btn btn-o btn-sm" id="ins-fit-content" style="margin-top:10px;width:100%">适应内容</button>
       </div>
       <div class="ins-empty" style="height:auto;margin-top:28px">选择一个模型块或容器后，可以编辑名称、参数和画布位置。</div>
     `;
@@ -748,6 +781,14 @@ function renderInspector() {
         commitState();
       });
     }
+    const wInput = inspector.querySelector('#ins-canvas-w');
+    const hInput = inspector.querySelector('#ins-canvas-h');
+    if (wInput && hInput) {
+      wInput.addEventListener('change', () => { setCanvasSize(Number(wInput.value) || CANVAS_MIN_W, canvasH); });
+      hInput.addEventListener('change', () => { setCanvasSize(canvasW, Number(hInput.value) || CANVAS_MIN_H); });
+    }
+    const fitBtn = inspector.querySelector('#ins-fit-content');
+    if (fitBtn) fitBtn.addEventListener('click', fitCanvasToContent);
     return;
   }
 
@@ -833,6 +874,7 @@ function renderInspector() {
       current[axis] = Math.max(8, n);
       renderModel();
       commitState();
+      maybeExpandCanvas();
     });
   });
 }
@@ -961,11 +1003,63 @@ function getInsertIndex(containerId, y, movingBlockId=null) {
   return insertIdx;
 }
 
+function applyZoom() {
+  canvas.style.transform = `scale(${zoomLevel})`;
+  const label = document.getElementById('zoom-label');
+  if (label) label.textContent = Math.round(zoomLevel * 100) + '%';
+  scheduleConnectionRender();
+}
+function zoomIn() { zoomLevel = Math.min(ZOOM_MAX, +(zoomLevel + ZOOM_STEP).toFixed(4)); applyZoom(); }
+function zoomOut() { zoomLevel = Math.max(ZOOM_MIN, +(zoomLevel - ZOOM_STEP).toFixed(4)); applyZoom(); }
+function zoomReset() { zoomLevel = 1; applyZoom(); }
+
+function applyCanvasSize() {
+  canvas.style.width = canvasW + 'px';
+  canvas.style.height = canvasH + 'px';
+  scheduleConnectionRender();
+}
+
+function maybeExpandCanvas() {
+  let expanded = false;
+  model.children.forEach(block => {
+    const bx = typeof block.x === 'number' ? block.x : 0;
+    const by = typeof block.y === 'number' ? block.y : 0;
+    if (bx + 360 > canvasW - EDGE_THRESHOLD) {
+      canvasW += CANVAS_EXPAND;
+      expanded = true;
+    }
+    if (by + 160 > canvasH - EDGE_THRESHOLD) {
+      canvasH += CANVAS_EXPAND;
+      expanded = true;
+    }
+  });
+  if (expanded) applyCanvasSize();
+}
+
+function fitCanvasToContent() {
+  let maxX = CANVAS_MIN_W, maxY = CANVAS_MIN_H;
+  model.children.forEach(block => {
+    const bx = (typeof block.x === 'number' ? block.x : 0) + 360;
+    const by = (typeof block.y === 'number' ? block.y : 0) + 180;
+    if (bx > maxX) maxX = bx;
+    if (by > maxY) maxY = by;
+  });
+  canvasW = Math.max(CANVAS_MIN_W, maxX + 400);
+  canvasH = Math.max(CANVAS_MIN_H, maxY + 400);
+  applyCanvasSize();
+}
+
+function setCanvasSize(w, h) {
+  canvasW = Math.max(CANVAS_MIN_W, w);
+  canvasH = Math.max(CANVAS_MIN_H, h);
+  applyCanvasSize();
+}
+
 function canvasPoint(clientX, clientY) {
   const r = canvas.getBoundingClientRect();
   return {
-    x: Math.max(8, clientX - r.left),
-    y: Math.max(8, clientY - r.top)
+    x: Math.max(8, (clientX - r.left) / zoomLevel),
+    y: Math.max(8, (clientY - r.top) / zoomLevel)
   };
 }
 
@@ -1094,8 +1188,8 @@ document.addEventListener('mousemove', function(e) {
     }
   }
   if (dragBlockId) {
-    const dx = e.clientX - dragStart.x;
-    const dy = e.clientY - dragStart.y;
+    const dx = (e.clientX - dragStart.x) / zoomLevel;
+    const dy = (e.clientY - dragStart.y) / zoomLevel;
     if (Math.abs(dx) + Math.abs(dy) > 4) suppressBlockClick = true;
     dragGhost.style.left = (e.clientX + 10) + 'px';
     dragGhost.style.top = (e.clientY + 10) + 'px';
@@ -1143,6 +1237,7 @@ document.addEventListener('mouseup', function(e) {
       }
     }
     setTimeout(() => { paletteDragType = null; paletteDragMoved = false; paletteDragStart = null; }, 0);
+    maybeExpandCanvas();
   }
   if (dragBlockId) {
     dragGhost.classList.add('hide');
@@ -1193,6 +1288,7 @@ document.addEventListener('mouseup', function(e) {
     dragOrigin = null;
     dragMode = null;
     setTimeout(() => { suppressBlockClick = false; }, 0);
+    maybeExpandCanvas();
   }
 });
 
@@ -1236,6 +1332,14 @@ document.getElementById('mb-canvas-wrap').addEventListener('mousedown', function
   this.classList.add('panning');
 });
 
+document.getElementById('mb-canvas-wrap').addEventListener('wheel', function(e) {
+  if (!e.ctrlKey && !e.metaKey) return; // normal scroll without Ctrl/Meta
+  e.preventDefault();
+  const delta = e.deltaY > 0 ? -ZOOM_STEP : ZOOM_STEP;
+  zoomLevel = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +(zoomLevel + delta).toFixed(4)));
+  applyZoom();
+}, { passive: false });
+
 // ============================================================
 // PALETTE
 // ============================================================
@@ -1273,6 +1377,9 @@ function openModelBuilder() {
   document.getElementById('model-builder').classList.add('show');
   document.body.style.overflow = 'hidden';
   restoreState();
+  applyCanvasSize();
+  applyZoom();
+  maybeExpandCanvas();
 }
 function closeModelBuilder() {
   saveState();
@@ -1282,11 +1389,11 @@ function closeModelBuilder() {
 document.getElementById('mb-back-btn').addEventListener('click', closeModelBuilder);
 
 function saveState() {
-  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({model, blockIdCounter})); } catch(e) {}
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({model, blockIdCounter, canvasW, canvasH})); } catch(e) {}
 }
 
 function stateSnapshot() {
-  return JSON.stringify({ model, blockIdCounter });
+  return JSON.stringify({ model, blockIdCounter, canvasW, canvasH });
 }
 
 function applySnapshot(snapshot) {
@@ -1296,6 +1403,7 @@ function applySnapshot(snapshot) {
   if (selectedBlockId !== null && !findBlock(selectedBlockId)) selectedBlockId = null;
   saveState();
   renderModel();
+  maybeExpandCanvas();
 }
 
 function resetHistory() {
@@ -1359,6 +1467,8 @@ function restoreState() {
       const s = JSON.parse(raw);
       model = normalizeModel(s.model);
       blockIdCounter = Math.max(s.blockIdCounter || 0, maxBlockId(model));
+      if (typeof s.canvasW === 'number') canvasW = s.canvasW;
+      if (typeof s.canvasH === 'number') canvasH = s.canvasH;
     }
   } catch(e) {
     model = { id:0, type:'root', children:[], collapsed:false, params:{}, connections:[] };
@@ -1368,6 +1478,88 @@ function restoreState() {
   selectedBlockId = null; dragBlockId = null; paletteDragType = null; connectFrom = null;
   renderModel();
   resetHistory();
+}
+
+// ============================================================
+// ID REMAPPING & MERGE
+// ============================================================
+function remapBlockIds(block, idMap) {
+  const oldId = block.id;
+  block.id = idMap.get(oldId) ?? oldId;
+  if (block.children) {
+    block.children.forEach(child => remapBlockIds(child, idMap));
+  }
+}
+
+function mergeImportedModel(cfg) {
+  const offset = maxBlockId(model) + 1;
+  const idMap = new Map();
+  const isFormal = !!(cfg.graph); // formal format has cfg.graph, internal format has cfg.children directly
+
+  function collectJsonIds(node) {
+    idMap.set(node.id, node.id + offset);
+    if (node.children) node.children.forEach(collectJsonIds);
+  }
+
+  // 1. Collect IDs and determine nodes to import
+  let importNodes;
+  if (isFormal) {
+    importNodes = cfg.graph.nodes || [];
+    importNodes.forEach(collectJsonIds);
+  } else {
+    importNodes = cfg.children || [];
+    importNodes.forEach(collectJsonIds);
+  }
+
+  // 2. Convert to block objects
+  const newBlocks = isFormal
+    ? importNodes.map(deserializeNode)
+    : importNodes.map(block => {
+        // Deep-clone existing block so we don't mutate the source
+        const cloned = JSON.parse(JSON.stringify(block));
+        if (!cloned.children) cloned.children = [];
+        if (!cloned.params) cloned.params = {};
+        return cloned;
+      });
+
+  // 3. Remap all block IDs
+  newBlocks.forEach(block => remapBlockIds(block, idMap));
+
+  // 4. Offset positions to avoid overlap with existing blocks
+  const existingCount = model.children.length;
+  newBlocks.forEach((block, i) => {
+    if (typeof block.x === 'number') block.x += 40 + Math.floor(Math.random() * 30);
+    else block.x = 48 + ((existingCount + i) % 4) * 380;
+    if (typeof block.y === 'number') block.y += 40 + Math.floor(Math.random() * 30);
+    else block.y = 48 + Math.floor((existingCount + i) / 4) * 180;
+  });
+
+  // 5. Append to model
+  model.children.push(...newBlocks);
+
+  // 6. Merge connections
+  if (!model.connections) model.connections = [];
+  const importConns = isFormal ? (cfg.graph.connections || []) : (cfg.connections || []);
+  importConns.forEach(c => {
+    const newFrom = idMap.get(c.from) ?? c.from;
+    const newTo = idMap.get(c.to) ?? c.to;
+    if (!model.connections.some(ex => ex.from === newFrom && ex.to === newTo)) {
+      model.connections.push({ from: newFrom, to: newTo });
+    }
+  });
+
+  // 7. Update name if merging
+  if (!model.name && cfg.name) model.name = cfg.name;
+  else if (model.name && cfg.name && model.name !== cfg.name) {
+    model.name = model.name + ' + ' + cfg.name;
+  }
+
+  blockIdCounter = Math.max(blockIdCounter, maxBlockId(model));
+  selectedBlockId = null;
+  renderModel();
+  saveState();
+  commitState();
+  maybeExpandCanvas();
 }
 
 // ============================================================
@@ -1462,30 +1654,79 @@ function exportModel() {
   const blob = new Blob([json], { type:'application/json' });
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'model_definition.json'; a.click();
 }
+function showImportDialog(cfg, fileName) {
+  // Remove any existing overlay
+  const existing = document.querySelector('.imp-modal-overlay');
+  if (existing) existing.remove();
+
+  const overlay = document.createElement('div');
+  overlay.className = 'imp-modal-overlay';
+  overlay.innerHTML = `
+    <div class="imp-modal">
+      <h2>导入模型</h2>
+      <p class="imp-desc">文件: <b>${escapeHtml(fileName)}</b><br>你想如何处理这个模型？</p>
+      <div class="imp-btns">
+        <button class="btn btn-o" data-action="replace">替换当前模型</button>
+        <button class="btn btn-p" data-action="merge">合并到当前模型</button>
+        <button class="btn" style="background:#e5e7eb;color:#555" data-action="cancel">取消</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  overlay.addEventListener('click', function(e) {
+    // Click background to cancel
+    if (e.target === overlay) { overlay.remove(); return; }
+    const action = e.target.dataset.action;
+    if (!action) return;
+    overlay.remove();
+
+    if (action === 'replace') {
+      const formalModel = modelFromDefinition(cfg);
+      if (formalModel) {
+        model = formalModel;
+        blockIdCounter = maxBlockId(model);
+        selectedBlockId = null; renderModel(); saveState(); resetHistory();
+      } else if (cfg.model) {
+        model = normalizeModel(cfg.model);
+        blockIdCounter = Math.max(cfg.blockIdCounter || 0, maxBlockId(model));
+        selectedBlockId = null; renderModel(); saveState(); resetHistory();
+      } else if (cfg.type === 'root') {
+        model = normalizeModel(cfg);
+        blockIdCounter = maxBlockId(model);
+        selectedBlockId = null; renderModel(); saveState(); resetHistory();
+      }
+    } else if (action === 'merge') {
+      const formalModel = modelFromDefinition(cfg);
+      if (formalModel) {
+        mergeImportedModel(formalModel);
+      } else if (cfg.model) {
+        mergeImportedModel(cfg.model);
+      } else if (cfg.type === 'root') {
+        mergeImportedModel(cfg);
+      } else {
+        alert('未找到可合并的模型数据');
+      }
+    }
+    // cancel: do nothing
+  });
+}
+
 function importModel() {
   const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
   inp.onchange = e => {
     const file = e.target.files[0]; if (!file) return;
+    const fileName = file.name;
     const r = new FileReader();
     r.onload = () => {
       try {
         const cfg = JSON.parse(r.result);
-        const formalModel = modelFromDefinition(cfg);
-        if (formalModel) {
-          model = formalModel;
-          blockIdCounter = maxBlockId(model);
-          selectedBlockId = null; renderModel(); saveState(); resetHistory();
-        } else if (cfg.model) {
-          model = normalizeModel(cfg.model);
-          blockIdCounter = Math.max(cfg.blockIdCounter || 0, maxBlockId(model));
-          selectedBlockId = null; renderModel(); saveState(); resetHistory();
-        } else if (cfg.type === 'root') {
-          model = normalizeModel(cfg);
-          blockIdCounter = maxBlockId(model);
-          selectedBlockId = null; renderModel(); saveState(); resetHistory();
-        } else {
+        const canImport = modelFromDefinition(cfg) || cfg.model || cfg.type === 'root';
+        if (!canImport) {
           alert('未找到可加载的模型数据');
+          return;
         }
+        showImportDialog(cfg, fileName);
       } catch(ex) { alert('文件格式错误'); }
     };
     r.readAsText(file);
