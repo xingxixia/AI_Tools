@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "AI Model Tool Model Definition",
+  "description": "画布顶层使用 graph 表示节点和箭头连接；容器节点内部使用 children 表示自上而下执行的函数体。",
+  "type": "object",
+  "required": ["format", "version", "name", "graph"],
+  "properties": {
+    "format": {
+      "type": "string",
+      "const": "ai-model-tool"
+    },
+    "version": {
+      "type": "string",
+      "const": "3.0"
+    },
+    "name": {
+      "type": "string",
+      "description": "模型名称"
+    },
+    "description": {
+      "type": "string"
+    },
+    "graph": {
+      "type": "object",
+      "required": ["nodes", "connections"],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "description": "画布顶层节点；模型块和容器块都可以作为 graph 节点参与箭头连接。",
+          "items": { "$ref": "#/$defs/node" }
+        },
+        "connections": {
+          "type": "array",
+          "description": "画布顶层节点之间的数据流连接。",
+          "items": {
+            "type": "object",
+            "required": ["from", "to"],
+            "properties": {
+              "from": { "type": "integer" },
+              "to": { "type": "integer" },
+              "label": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "node": {
+      "type": "object",
+      "required": ["id", "type", "name", "params"],
+      "properties": {
+        "id": {
+          "type": "integer"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "linear", "conv2d", "conv1d",
+            "relu", "gelu", "sigmoid", "tanh", "softmax",
+            "dropout", "batchnorm2d", "layernorm",
+            "maxpool2d", "avgpool2d", "adaptiveavgpool2d",
+            "flatten", "embedding", "lstm",
+            "sequential", "for_loop", "residual"
+          ]
+        },
+        "name": {
+          "type": "string",
+          "description": "显示名称，可由用户改名"
+        },
+        "params": {
+          "type": "object",
+          "description": "节点参数"
+        },
+        "position": {
+          "type": "object",
+          "description": "顶层画布节点的位置；容器内部节点可省略",
+          "properties": {
+            "x": { "type": "number" },
+            "y": { "type": "number" }
+          },
+          "additionalProperties": false
+        },
+        "execution": {
+          "type": "string",
+          "description": "容器内部执行语义",
+          "enum": ["sequence"]
+        },
+        "children": {
+          "type": "array",
+          "description": "容器内部节点，按数组顺序自上而下执行；支持容器嵌套。",
+          "items": { "$ref": "#/$defs/node" }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

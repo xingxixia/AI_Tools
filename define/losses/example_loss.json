@@ -1,0 +1,17 @@
+{
+  "name": "example_classification_loss",
+  "version": "1.0",
+  "description": "示例：分类任务 Loss (CrossEntropy + L1 正则)",
+  "losses": [
+    {
+      "type": "cross_entropy",
+      "weight": 1.0,
+      "params": {}
+    },
+    {
+      "type": "l1",
+      "weight": 0.001,
+      "params": {}
+    }
+  ]
+}

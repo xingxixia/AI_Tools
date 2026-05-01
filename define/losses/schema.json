@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Loss Function Definition Schema",
+  "description": "AI Model Tool — Loss 函数定义格式规范",
+  "version": "1.0",
+  "type": "object",
+  "required": ["name", "version", "losses"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Loss 配置名称"
+    },
+    "version": {
+      "type": "string",
+      "enum": ["1.0"]
+    },
+    "description": {
+      "type": "string"
+    },
+    "losses": {
+      "type": "array",
+      "description": "损失函数列表（支持多 loss 加权组合）",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "cross_entropy", "mse", "bce",
+              "l1", "huber", "kl_div",
+              "nll", "cosine_embedding",
+              "triplet_margin", "ctc",
+              "custom"
+            ]
+          },
+          "weight": {
+            "type": "number",
+            "description": "该 loss 的权重系数",
+            "default": 1.0
+          },
+          "params": {
+            "type": "object",
+            "description": "loss 函数参数"
+          },
+          "custom_code": {
+            "type": "string",
+            "description": "当 type 为 custom 时的自定义代码"
+          }
+        }
+      }
+    }
+  }
+}

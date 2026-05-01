@@ -1,0 +1,1514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Model Tool</title>
+<style>
+/* ============================================================
+   RESET & VARIABLES
+   ============================================================ */
+:root {
+  --sb-w:220px; --bg:#eef0f4; --sb-bg:#1a1a2e; --sb-hover:#252540; --sb-active:#333358;
+  --accent:#6c5ce7; --accent-light:#a29bfe; --accent-bg:#ede7f6;
+  --text:#1e1e2e; --text2:#6b7280; --card:#fff; --border:#e0e3e8; --radius:8px;
+  --danger:#e74c3c; --danger-hover:#c0392b;
+  --clr-basic:#5b9bd5; --clr-act:#ed7d31; --clr-norm:#70ad47;
+  --clr-pool:#9b59b6; --clr-comp:#00bcd4; --clr-other:#95a5a6;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--text);display:flex;min-height:100vh;overflow:hidden}
+
+/* ============================================================
+   SIDEBAR
+   ============================================================ */
+.sidebar{width:var(--sb-w);background:var(--sb-bg);color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:200;box-shadow:2px 0 16px rgba(0,0,0,.2)}
+.sb-logo{padding:26px 24px 18px;font-size:19px;font-weight:700;border-bottom:1px solid rgba(255,255,255,.08)}
+.sb-logo span{color:var(--accent-light)}
+.sb-nav{flex:1;padding:10px 0;display:flex;flex-direction:column;gap:1px}
+.sb-nav a{display:flex;align-items:center;gap:12px;padding:12px 24px;color:rgba(255,255,255,.6);text-decoration:none;font-size:14.5px;transition:all .15s;border-left:3px solid transparent}
+.sb-nav a:hover{background:var(--sb-hover);color:rgba(255,255,255,.88)}
+.sb-nav a.active{background:var(--sb-active);color:#fff;border-left-color:var(--accent-light)}
+.sb-nav a .ic{font-size:17px;width:22px;text-align:center}
+
+/* ============================================================
+   MAIN LAYOUT
+   ============================================================ */
+.main{margin-left:var(--sb-w);flex:1;overflow-y:auto;height:100vh}
+.page{display:none;padding:36px 44px;min-height:100vh}
+.page.show{display:block}
+.page-title{font-size:26px;font-weight:700;margin-bottom:6px}
+.page-sub{font-size:13.5px;color:var(--text2);margin-bottom:28px}
+
+/* ============================================================
+   CARDS & BUTTONS & FORM
+   ============================================================ */
+.card{background:var(--card);border-radius:var(--radius);padding:22px 24px;box-shadow:0 1px 3px rgba(0,0,0,.05);border:1px solid var(--border);margin-bottom:14px}
+.card h3{font-size:15px;margin-bottom:10px;font-weight:600}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:9px 20px;border:none;border-radius:6px;font-size:13.5px;font-weight:600;cursor:pointer;transition:all .12s;font-family:inherit}
+.btn-p{background:var(--accent);color:#fff}.btn-p:hover{background:#5a4bd1}
+.btn-o{background:transparent;color:var(--accent);border:1.5px solid var(--accent)}.btn-o:hover{background:var(--accent-bg)}
+.btn-d{background:var(--danger);color:#fff}.btn-d:hover{background:var(--danger-hover)}
+.btn-sm{padding:5px 12px;font-size:12px}
+label{display:block;font-size:12.5px;font-weight:600;color:var(--text2);margin-bottom:4px}
+input,textarea,select{width:100%;padding:9px 11px;border:1px solid var(--border);border-radius:6px;font-size:13.5px;font-family:inherit;transition:border .15s;background:#f9fafb}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--accent);background:#fff}
+.f-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.f-field{margin-bottom:14px}
+
+/* ============================================================
+   HOME
+   ============================================================ */
+.hero{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 20px 40px}
+.hero h1{font-size:52px;font-weight:800;background:linear-gradient(135deg,#6c5ce7,#a29bfe);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:17px;color:var(--text2);margin-top:10px}
+.hero .badge{display:inline-block;margin-top:20px;padding:5px 18px;background:var(--accent-bg);color:var(--accent);border-radius:20px;font-size:13px;font-weight:600}
+
+/* ============================================================
+   DEFINE MENU
+   ============================================================ */
+.define-options{display:grid;grid-template-columns:1fr 1fr;gap:20px;max-width:720px}
+.define-opt{background:var(--card);border-radius:var(--radius);padding:32px 28px;border:1px solid var(--border);cursor:pointer;transition:all .2s;text-decoration:none;color:var(--text)}
+.define-opt:hover{box-shadow:0 4px 16px rgba(0,0,0,.1);transform:translateY(-2px);border-color:var(--accent-light)}
+.define-opt .opt-icon{font-size:36px;margin-bottom:12px}
+.define-opt h3{font-size:17px;margin-bottom:6px;font-weight:700}
+.define-opt p{font-size:13px;color:var(--text2);line-height:1.5}
+
+/* ============================================================
+   MODEL BUILDER (Block-based)
+   ============================================================ */
+.mb-overlay{position:fixed;top:0;left:0;right:0;bottom:0;z-index:300;background:var(--bg);display:none;flex-direction:column}
+.mb-overlay.show{display:flex}
+
+.mb-topbar{display:flex;align-items:center;gap:14px;padding:8px 18px;background:#fff;border-bottom:1px solid var(--border);z-index:10;height:50px;flex-shrink:0}
+.mb-back{width:32px;height:32px;border-radius:50%;border:1px solid var(--border);background:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:16px;transition:all .12s}
+.mb-back:hover{background:#f5f5f5}
+.mb-title{font-size:14.5px;font-weight:700;flex:1}
+.mb-actions{display:flex;align-items:center;gap:8px}
+
+.mb-body{display:flex;flex:1;overflow:hidden}
+
+/* palette */
+.mb-palette{width:200px;background:#fff;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:8px 0}
+.pal-group{padding:8px 14px 4px;font-size:10.5px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.pal-item{padding:8px 14px 8px 20px;font-size:12.5px;cursor:grab;transition:background .1s;display:flex;align-items:center;gap:8px;user-select:none;border-left:3px solid transparent}
+.pal-item:hover{background:#f3f4f6}
+.pal-item:active{cursor:grabbing}
+.pal-item .dot{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* canvas */
+.mb-canvas-wrap{flex:1;overflow:auto;background:#e8ebf1;padding:20px;cursor:grab}
+.mb-canvas-wrap.panning{cursor:grabbing}
+.mb-canvas{width:1800px;height:1100px;position:relative;background-color:#f7f8fb;background-image:linear-gradient(#e4e7ee 1px,transparent 1px),linear-gradient(90deg,#e4e7ee 1px,transparent 1px);background-size:24px 24px;border:1px solid #d7dce5;border-radius:8px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.65)}
+.model-workspace{position:relative;width:100%;height:100%;overflow:hidden}
+
+/* ---- BLOCK ---- */
+.blk-container{border:1.5px solid #d0d5dd;border-radius:10px;background:#fff;margin-bottom:8px;position:relative;transition:box-shadow .15s;z-index:2}
+.top-block{position:absolute;width:340px;margin-bottom:0;box-shadow:0 8px 22px rgba(31,41,55,.11)}
+.top-block.dragging{opacity:.92;box-shadow:0 14px 32px rgba(31,41,55,.18);transition:none!important}
+.blk-container.drag-over{box-shadow:0 0 0 2px var(--accent);border-color:var(--accent)}
+.blk-container.drag-target{box-shadow:0 0 0 3px rgba(108,92,231,.3)}
+.blk-container.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(108,92,231,.25)}
+.blk-leaf.selected{border-color:var(--accent);box-shadow:0 0 0 2px rgba(108,92,231,.18)}
+
+/* container header */
+.blk-hd{display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px 8px 0 0;color:#fff;font-size:13px;font-weight:700;cursor:grab;min-height:36px}
+.blk-hd:active{cursor:grabbing}
+.blk-hd .blk-icon{margin-right:2px;font-size:14px}
+.blk-hd .blk-badge{margin-left:auto;background:rgba(0,0,0,.25);padding:2px 8px;border-radius:10px;font-size:10.5px}
+.blk-hd .blk-collapse{margin-left:6px;transition:transform .2s;font-size:11px}
+.blk-container.collapsed .blk-hd{border-radius:8px}
+.blk-container.collapsed .blk-collapse{transform:rotate(-90deg)}
+
+/* container body */
+.blk-body{padding:8px 12px 12px;min-height:54px;display:flex;flex-direction:column}
+.blk-container.collapsed .blk-body{display:none}
+
+/* leaf block (inside container body) */
+.blk-leaf{display:flex;align-items:center;gap:8px;padding:6px 10px;margin:2px 0;border-radius:6px;background:#f8f9fb;border:1px solid #e8eaef;cursor:grab;transition:background .12s,border-color .12s,box-shadow .12s;font-size:12.5px;min-height:32px;position:relative;z-index:3}
+.blk-leaf:hover{background:#f0f1f5;border-color:#d0d5dd}
+.blk-leaf.drag-ghost{opacity:.3}
+.blk-leaf .leaf-color{width:4px;height:20px;border-radius:2px;flex-shrink:0}
+.blk-leaf .leaf-name{font-weight:600;flex:1}
+.blk-leaf .leaf-params{font-size:11px;color:var(--text2)}
+.blk-leaf .leaf-actions{display:flex;gap:4px;opacity:0;transition:opacity .12s}
+.blk-leaf:hover .leaf-actions{opacity:1}
+
+/* ports on container */
+.blk-ports{position:absolute;display:flex;flex-direction:column;gap:4px;top:50%;transform:translateY(-50%)}
+.blk-ports.in{left:-6px}.blk-ports.out{right:-6px}
+.blk-port{width:12px;height:12px;border-radius:50%;background:#fff;border:2.5px solid #999;cursor:crosshair;transition:all .12s}
+.blk-port:hover{background:var(--accent);border-color:var(--accent);transform:scale(1.35)}
+
+/* root model container */
+.root-container{border:2px solid #c4c9d4;border-radius:12px;background:#fff;min-height:120px;position:relative}
+.root-container>.blk-hd{font-size:15px;padding:10px 16px;border-radius:10px 10px 0 0;background:#4a4a6a;cursor:default}
+.root-container>.blk-body{padding:12px 16px}
+
+/* empty placeholder */
+.blk-empty{text-align:center;padding:24px;color:#9aa2b1;font-size:13px;border:2px dashed #d7dce5;border-radius:8px;background:rgba(255,255,255,.72)}
+.canvas-empty{position:absolute;left:40px;top:40px;width:360px}
+
+/* connection arrows (SVG overlay) */
+.conn-svg{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1}
+.conn-svg path.hit{stroke:transparent;stroke-width:14;fill:none;pointer-events:stroke;cursor:pointer}
+.conn-svg path.line{stroke:#6c5ce7;stroke-width:2.2;fill:none;pointer-events:none}
+.conn-svg path.line.sel{stroke:#e74c3c;stroke-width:3}
+
+/* loss page */
+.loss-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;max-width:800px;margin-bottom:20px}
+.loss-card{padding:18px;border:2px solid var(--border);border-radius:var(--radius);text-align:center;cursor:pointer;transition:all .15s;background:var(--card)}
+.loss-card:hover{border-color:var(--accent-light)}
+.loss-card.sel{border-color:var(--accent);background:var(--accent-bg)}
+.loss-card .lc-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.loss-card .lc-desc{font-size:12px;color:var(--text2)}
+
+/* train/test */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
+.stat-card{background:var(--card);border-radius:var(--radius);padding:18px;text-align:center;border:1px solid var(--border)}
+.stat-card .sv{font-size:26px;font-weight:700;color:var(--accent)}
+.stat-card .sl{font-size:11.5px;color:var(--text2);margin-top:4px}
+.progress-bar{height:7px;background:#e5e7eb;border-radius:4px;overflow:hidden;margin-top:8px}
+.progress-bar .fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-light));border-radius:4px;transition:width .3s}
+.result-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.result-card{background:var(--card);border-radius:var(--radius);padding:18px;text-align:center;border:1px solid var(--border)}
+.result-card .metric{font-size:22px;font-weight:700}
+.result-card .metric.good{color:#27ae60}.metric.warn{color:#f39c12}.metric.bad{color:#e74c3c}
+.result-card .mlabel{font-size:11.5px;color:var(--text2);margin-top:4px}
+.empty-state{text-align:center;padding:60px 20px;color:var(--text2)}.empty-state .ei{font-size:44px;margin-bottom:10px}
+
+/* drag ghost */
+.drag-ghost{position:fixed;pointer-events:none;z-index:999;opacity:.85;font-size:12.5px;font-weight:600;padding:6px 14px;border-radius:6px;color:#fff;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.hide{display:none!important}
+.temp-line{position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:998}
+.temp-line svg{width:100vw;height:100vh}
+.ctx-menu{position:fixed;z-index:500;background:#fff;border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.18);padding:4px 0;min-width:140px;display:none;border:1px solid var(--border)}
+.ctx-menu .ctx-item{padding:8px 16px;font-size:13px;cursor:pointer;display:flex;align-items:center;gap:8px}
+.ctx-menu .ctx-item:hover{background:#f3f4f6}
+.ctx-menu .ctx-item.danger{color:var(--danger)}
+
+/* inspector */
+.mb-inspector{width:290px;background:#fff;border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;padding:16px 16px 22px}
+.ins-empty{height:100%;display:flex;align-items:center;justify-content:center;text-align:center;color:#9aa2b1;font-size:13px;line-height:1.6}
+.ins-head{margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.ins-kicker{font-size:11px;color:var(--text2);text-transform:uppercase;font-weight:700;letter-spacing:.4px;margin-bottom:4px}
+.ins-title{font-size:16px;font-weight:700}
+.ins-section{margin-top:16px}
+.ins-section h4{font-size:12.5px;margin-bottom:8px;color:var(--text2);font-weight:700}
+.ins-field{margin-bottom:10px}
+.ins-field input{font-size:12.5px;padding:7px 9px}
+.ins-meta{font-size:12px;color:var(--text2);line-height:1.6;background:#f8f9fb;border:1px solid var(--border);border-radius:6px;padding:8px 10px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+</style>
+</head>
+<body>
+
+<!-- ==================== SIDEBAR ==================== -->
+<aside class="sidebar">
+  <div class="sb-logo"><span>AI</span> Model Tool</div>
+  <nav class="sb-nav">
+    <a href="#home" class="active" data-page="home"><span class="ic">🏠</span> 首页</a>
+    <a href="#define" data-page="define"><span class="ic">🧱</span> 定义</a>
+    <a href="#train" data-page="train"><span class="ic">🚀</span> 训练</a>
+    <a href="#test" data-page="test"><span class="ic">📊</span> 测试</a>
+  </nav>
+</aside>
+
+<!-- ==================== MAIN ==================== -->
+<div class="main" id="main-container">
+
+  <!-- HOME -->
+  <section class="page show" id="pg-home">
+    <div class="hero">
+      <h1>Hello 👋</h1>
+      <p>积木式搭建、训练、测试 AI 模型的一站式工作台</p>
+      <div class="badge">v2.0 — Block Builder</div>
+      <div style="display:flex;gap:12px;margin-top:28px">
+        <button class="btn btn-p" onclick="navTo('define')">开始定义模型</button>
+        <button class="btn btn-o" onclick="navTo('train')">直接训练</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- DEFINE MENU -->
+  <section class="page" id="pg-define">
+    <h1 class="page-title">定义</h1>
+    <p class="page-sub">选择要定义的内容</p>
+    <div class="define-options">
+      <div class="define-opt" onclick="openModelBuilder()">
+        <div class="opt-icon">🧠</div><h3>模型定义</h3><p>积木式搭建模型结构，方框=函数，上下堆叠执行</p>
+      </div>
+      <div class="define-opt" onclick="navTo('lossdef')">
+        <div class="opt-icon">🎯</div><h3>Loss 函数定义</h3><p>配置损失函数，支持多 loss 加权组合</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOSS -->
+  <section class="page" id="pg-lossdef">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:22px">
+      <button class="btn btn-o btn-sm" onclick="navTo('define')">← 返回</button>
+      <h1 class="page-title" style="margin:0">Loss 函数定义</h1>
+    </div>
+    <div class="loss-grid" id="loss-grid">
+      <div class="loss-card sel" data-loss="cross_entropy" onclick="selectLoss(this)"><div class="lc-name">CrossEntropyLoss</div><div class="lc-desc">交叉熵损失，适用于分类任务</div></div>
+      <div class="loss-card" data-loss="mse" onclick="selectLoss(this)"><div class="lc-name">MSELoss</div><div class="lc-desc">均方误差，适用于回归任务</div></div>
+      <div class="loss-card" data-loss="bce" onclick="selectLoss(this)"><div class="lc-name">BCELoss</div><div class="lc-desc">二分类交叉熵损失</div></div>
+      <div class="loss-card" data-loss="l1" onclick="selectLoss(this)"><div class="lc-name">L1Loss</div><div class="lc-desc">平均绝对误差 MAE</div></div>
+      <div class="loss-card" data-loss="huber" onclick="selectLoss(this)"><div class="lc-name">HuberLoss</div><div class="lc-desc">Huber 损失，结合 MSE 和 MAE</div></div>
+      <div class="loss-card" data-loss="kl_div" onclick="selectLoss(this)"><div class="lc-name">KLDivLoss</div><div class="lc-desc">KL 散度损失</div></div>
+    </div>
+    <div class="card"><h3>辅助 Loss 权重</h3><div class="f-row"><div class="f-field"><label>Aux Loss</label><select><option>无</option><option>MSELoss</option><option>L1Loss</option></select></div><div class="f-field"><label>权重</label><input type="text" value="0.1"></div></div><button class="btn btn-p">保存配置</button></div>
+  </section>
+
+  <!-- TRAIN -->
+  <section class="page" id="pg-train">
+    <h1 class="page-title">模型训练</h1>
+    <p class="page-sub">配置训练参数并启动训练任务</p>
+    <div class="stats-row">
+      <div class="stat-card"><div class="sv" id="tr-epoch">0</div><div class="sl">当前 Epoch</div></div>
+      <div class="stat-card"><div class="sv" id="tr-loss">--</div><div class="sl">Loss</div></div>
+      <div class="stat-card"><div class="sv" id="tr-acc">--</div><div class="sl">Accuracy</div></div>
+      <div class="stat-card"><div class="sv" id="tr-time">00:00</div><div class="sl">耗时</div></div>
+    </div>
+    <div class="card">
+      <h3>训练配置</h3>
+      <div class="f-row"><div class="f-field"><label>Epochs</label><input type="number" id="epochs" value="10" min="1"></div><div class="f-field"><label>Batch Size</label><input type="number" id="batch-size" value="32" min="1"></div></div>
+      <div class="f-row"><div class="f-field"><label>Learning Rate</label><input type="text" id="lr" value="0.001"></div><div class="f-field"><label>Optimizer</label><select id="optimizer"><option value="adam">Adam</option><option value="sgd">SGD</option><option value="adamw">AdamW</option></select></div></div>
+      <div style="display:flex;gap:10px;margin-top:6px">
+        <button class="btn btn-p" id="btn-train" onclick="startTraining()">▶ 开始训练</button>
+        <button class="btn btn-o" id="btn-pause" onclick="pauseTraining()" disabled>暂停</button>
+        <button class="btn btn-d" id="btn-stop" onclick="stopTraining()" disabled>停止</button>
+      </div>
+    </div>
+    <div class="card"><h3>训练进度</h3><div class="progress-bar"><div class="fill" id="train-progress" style="width:0%"></div></div><p style="margin-top:8px;font-size:13px;color:var(--text2)"><span id="progress-text">等待开始...</span></p></div>
+  </section>
+
+  <!-- TEST -->
+  <section class="page" id="pg-test">
+    <h1 class="page-title">模型测试</h1>
+    <p class="page-sub">加载模型并评估性能指标</p>
+    <div class="result-grid">
+      <div class="result-card"><div class="metric metric-label" id="m-acc">--</div><div class="mlabel">Accuracy</div></div>
+      <div class="result-card"><div class="metric metric-label" id="m-prec">--</div><div class="mlabel">Precision</div></div>
+      <div class="result-card"><div class="metric metric-label" id="m-recall">--</div><div class="mlabel">Recall</div></div>
+      <div class="result-card"><div class="metric metric-label" id="m-f1">--</div><div class="mlabel">F1 Score</div></div>
+      <div class="result-card"><div class="metric metric-label" id="m-loss">--</div><div class="mlabel">Test Loss</div></div>
+      <div class="result-card"><div class="metric metric-label" id="m-time">--</div><div class="mlabel">Inference Time</div></div>
+    </div>
+    <div class="card">
+      <h3>测试配置</h3>
+      <div class="f-row"><div class="f-field"><label>测试数据路径</label><input type="text" id="test-path" placeholder="data/test/"></div><div class="f-field"><label>模型权重路径</label><input type="text" id="weight-path" placeholder="checkpoints/best.pt"></div></div>
+      <div style="display:flex;gap:10px"><button class="btn btn-p" onclick="runTest()">▶ 运行测试</button><button class="btn btn-o" onclick="exportResults()">导出结果</button></div>
+    </div>
+    <div class="card" id="test-log-card" style="display:none"><h3>测试日志</h3><pre id="test-log" style="font-size:11.5px;color:var(--text2);white-space:pre-wrap;max-height:180px;overflow-y:auto"></pre></div>
+  </section>
+
+</div>
+
+<!-- ==================== MODEL BUILDER OVERLAY ==================== -->
+<div class="mb-overlay" id="model-builder">
+  <div class="mb-topbar">
+    <button class="mb-back" id="mb-back-btn" title="返回并保存">←</button>
+    <span class="mb-title">模型定义 — 积木式搭建</span>
+    <div class="mb-actions">
+      <button class="btn btn-o btn-sm" id="btn-undo" onclick="undoHistory()" title="撤销 Ctrl+Z">↶ 撤销</button>
+      <button class="btn btn-o btn-sm" id="btn-redo" onclick="redoHistory()" title="重做 Ctrl+Y">↷ 重做</button>
+      <button class="btn btn-o btn-sm" onclick="exportModel()">导出 JSON</button>
+      <button class="btn btn-o btn-sm" onclick="importModel()">导入 JSON</button>
+      <button class="btn btn-d btn-sm" onclick="clearModel()">清空</button>
+    </div>
+  </div>
+  <div class="mb-body">
+    <!-- palette -->
+    <div class="mb-palette" id="mb-palette">
+      <div class="pal-group">🧱 基础层</div>
+      <div class="pal-item" data-type="linear"><span class="dot" style="background:var(--clr-basic)"></span> Linear</div>
+      <div class="pal-item" data-type="conv2d"><span class="dot" style="background:var(--clr-basic)"></span> Conv2d</div>
+      <div class="pal-item" data-type="conv1d"><span class="dot" style="background:var(--clr-basic)"></span> Conv1d</div>
+      <div class="pal-group">⚡ 激活函数</div>
+      <div class="pal-item" data-type="relu"><span class="dot" style="background:var(--clr-act)"></span> ReLU</div>
+      <div class="pal-item" data-type="gelu"><span class="dot" style="background:var(--clr-act)"></span> GELU</div>
+      <div class="pal-item" data-type="sigmoid"><span class="dot" style="background:var(--clr-act)"></span> Sigmoid</div>
+      <div class="pal-item" data-type="tanh"><span class="dot" style="background:var(--clr-act)"></span> Tanh</div>
+      <div class="pal-item" data-type="softmax"><span class="dot" style="background:var(--clr-act)"></span> Softmax</div>
+      <div class="pal-group">🛡️ 正则化</div>
+      <div class="pal-item" data-type="dropout"><span class="dot" style="background:var(--clr-norm)"></span> Dropout</div>
+      <div class="pal-item" data-type="batchnorm2d"><span class="dot" style="background:var(--clr-norm)"></span> BatchNorm2d</div>
+      <div class="pal-item" data-type="layernorm"><span class="dot" style="background:var(--clr-norm)"></span> LayerNorm</div>
+      <div class="pal-group">📐 池化</div>
+      <div class="pal-item" data-type="maxpool2d"><span class="dot" style="background:var(--clr-pool)"></span> MaxPool2d</div>
+      <div class="pal-item" data-type="avgpool2d"><span class="dot" style="background:var(--clr-pool)"></span> AvgPool2d</div>
+      <div class="pal-item" data-type="adaptiveavgpool2d"><span class="dot" style="background:var(--clr-pool)"></span> AdaptiveAvgPool2d</div>
+      <div class="pal-group">📦 容器（函数）</div>
+      <div class="pal-item" data-type="sequential"><span class="dot" style="background:var(--clr-comp)"></span> 📁 Sequential</div>
+      <div class="pal-item" data-type="for_loop"><span class="dot" style="background:var(--clr-comp)"></span> 🔄 For Loop</div>
+      <div class="pal-item" data-type="residual"><span class="dot" style="background:var(--clr-comp)"></span> 🔀 Residual</div>
+      <div class="pal-group">🔧 其他</div>
+      <div class="pal-item" data-type="flatten"><span class="dot" style="background:var(--clr-other)"></span> Flatten</div>
+      <div class="pal-item" data-type="embedding"><span class="dot" style="background:var(--clr-other)"></span> Embedding</div>
+      <div class="pal-item" data-type="lstm"><span class="dot" style="background:var(--clr-other)"></span> LSTM</div>
+      <div style="padding:12px 14px;font-size:11px;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);margin-top:8px">
+        💡 <b>拖拽</b>或<b>点击</b>组件添加到画布<br>
+        📁 容器标题栏可<b>自由拖动</b><br>
+        🔄 容器内部<b>自上而下执行</b><br>
+        🖱️ 右键<b>连线/改名/删除</b>
+      </div>
+    </div>
+    <!-- canvas -->
+    <div class="mb-canvas-wrap" id="mb-canvas-wrap">
+      <div class="mb-canvas" id="mb-canvas"></div>
+    </div>
+    <aside class="mb-inspector" id="mb-inspector">
+      <div class="ins-empty">选择一个模型块或容器后，在这里编辑名称和参数。</div>
+    </aside>
+  </div>
+</div>
+
+<!-- drag ghost & temp line -->
+<div class="drag-ghost hide" id="drag-ghost"></div>
+<div class="temp-line hide" id="temp-conn"><svg></svg></div>
+<div class="ctx-menu" id="ctx-menu"></div>
+
+<script>
+// ============================================================
+// NAVIGATION
+// ============================================================
+function navTo(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('show'));
+  const pg = document.getElementById('pg-' + name);
+  if (pg) pg.classList.add('show');
+  document.querySelectorAll('.sb-nav a').forEach(a => a.classList.remove('active'));
+  const link = document.querySelector('[data-page="' + name + '"]');
+  if (link) link.classList.add('active');
+}
+document.querySelectorAll('.sb-nav a').forEach(link => {
+  link.addEventListener('click', e => { e.preventDefault(); navTo(link.dataset.page); });
+});
+
+// ============================================================
+// NODE DEFINITIONS
+// ============================================================
+const DEFS = {
+  linear:{name:'Linear',cat:'basic',color:'#5b9bd5',params:{in_features:128,out_features:64}},
+  conv2d:{name:'Conv2d',cat:'basic',color:'#5b9bd5',params:{in_channels:3,out_channels:64,kernel_size:3,stride:1,padding:1}},
+  conv1d:{name:'Conv1d',cat:'basic',color:'#5b9bd5',params:{in_channels:3,out_channels:64,kernel_size:3}},
+  relu:{name:'ReLU',cat:'act',color:'#ed7d31',params:{}},
+  gelu:{name:'GELU',cat:'act',color:'#ed7d31',params:{}},
+  sigmoid:{name:'Sigmoid',cat:'act',color:'#ed7d31',params:{}},
+  tanh:{name:'Tanh',cat:'act',color:'#ed7d31',params:{}},
+  softmax:{name:'Softmax',cat:'act',color:'#ed7d31',params:{dim:-1}},
+  dropout:{name:'Dropout',cat:'norm',color:'#70ad47',params:{p:0.5}},
+  batchnorm2d:{name:'BatchNorm2d',cat:'norm',color:'#70ad47',params:{num_features:64}},
+  layernorm:{name:'LayerNorm',cat:'norm',color:'#70ad47',params:{normalized_shape:64}},
+  maxpool2d:{name:'MaxPool2d',cat:'pool',color:'#9b59b6',params:{kernel_size:2,stride:2}},
+  avgpool2d:{name:'AvgPool2d',cat:'pool',color:'#9b59b6',params:{kernel_size:2}},
+  adaptiveavgpool2d:{name:'AdaptiveAvgPool2d',cat:'pool',color:'#9b59b6',params:{output_size:1}},
+  flatten:{name:'Flatten',cat:'other',color:'#95a5a6',params:{}},
+  embedding:{name:'Embedding',cat:'other',color:'#95a5a6',params:{num_embeddings:1000,embedding_dim:256}},
+  lstm:{name:'LSTM',cat:'other',color:'#95a5a6',params:{input_size:256,hidden_size:512,num_layers:2}},
+  sequential:{name:'Sequential',cat:'container',color:'#6366f1',params:{},container:true},
+  for_loop:{name:'For Loop',cat:'container',color:'#00bcd4',params:{iterations:3},container:true},
+  residual:{name:'Residual',cat:'container',color:'#8b5cf6',params:{},container:true},
+};
+const containerTypes = new Set(['sequential','for_loop','residual']);
+
+// ============================================================
+// MODEL STATE
+// ============================================================
+let model = { id:0, type:'root', children:[], collapsed:false, params:{}, connections:[] };
+let blockIdCounter = 0;
+let selectedBlockId = null;    // block id or container id
+let selectedContainerId = 0;   // which container is "active" for adding blocks (0=root)
+
+// ---- Drag state ----
+let dragBlockId = null;
+let dragOverContainerId = null;
+let paletteDragType = null;
+let paletteDragMoved = false;
+let paletteDragStart = null;
+let dragStart = null;
+let dragOrigin = null;
+let dragMode = null; // move on canvas, reorder inside a function, or move into/out of a function
+let panning = null;
+let suppressBlockClick = false;
+let connectionRenderPending = false;
+let connectFrom = null; // { blockId, side:'out' }
+let historyStack = [];
+let historyIndex = -1;
+const HISTORY_LIMIT = 80;
+
+// ---- Context menu ----
+let ctxBlockId = null;
+const STORAGE_KEY = 'ai_model_builder_v2';
+const EXPORT_FORMAT = 'ai-model-tool';
+const EXPORT_VERSION = '3.0';
+
+// ============================================================
+// RENDERING
+// ============================================================
+const canvas = document.getElementById('mb-canvas');
+const ctxMenu = document.getElementById('ctx-menu');
+const dragGhost = document.getElementById('drag-ghost');
+const tempConn = document.getElementById('temp-conn');
+const inspector = document.getElementById('mb-inspector');
+
+function findBlock(id, root=model) {
+  if (root.id === id) return root;
+  if (root.children) {
+    for (const c of root.children) {
+      const found = findBlock(id, c);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function findParent(id, root=model, parent=null) {
+  if (root.id === id) return parent;
+  if (root.children) {
+    for (const c of root.children) {
+      const found = findParent(id, c, root);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function paramsStr(type, params) {
+  const def = DEFS[type]; if (!def || !def.params) return '';
+  return Object.entries(def.params).map(([k,v]) => {
+    const val = params && params[k] !== undefined ? params[k] : v;
+    return k + '=' + (Array.isArray(val) ? '['+val.join(',')+']' : val);
+  }).join(', ');
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+function escapeAttr(value) {
+  return escapeHtml(value).replace(/`/g, '&#96;');
+}
+
+function paramInputValue(value) {
+  if (Array.isArray(value) || (value && typeof value === 'object')) return JSON.stringify(value);
+  return value ?? '';
+}
+
+function parseParamValue(value, oldValue) {
+  const trimmed = String(value).trim();
+  if (trimmed === '') return '';
+  if (trimmed === 'true') return true;
+  if (trimmed === 'false') return false;
+  if ((trimmed.startsWith('[') && trimmed.endsWith(']')) || (trimmed.startsWith('{') && trimmed.endsWith('}'))) {
+    try { return JSON.parse(trimmed); } catch(e) { return value; }
+  }
+  if (typeof oldValue === 'number' || /^-?\d+(\.\d+)?$/.test(trimmed)) {
+    const n = Number(trimmed);
+    if (!Number.isNaN(n)) return n;
+  }
+  return value;
+}
+
+function getBlockTitle(block) {
+  const def = DEFS[block.type];
+  return block.label || (def ? def.name : block.type);
+}
+
+function isTopLevelBlock(id) {
+  return id !== 0 && findParent(id) === model;
+}
+
+function ensureTopLevelPositions() {
+  model.children.forEach((block, i) => {
+    if (typeof block.x !== 'number') block.x = 48 + (i % 4) * 380;
+    if (typeof block.y !== 'number') block.y = 48 + Math.floor(i / 4) * 180;
+  });
+}
+
+function renderBlock(block, depth) {
+  if (block.type === 'root') {
+    ensureTopLevelPositions();
+    const count = block.children.length;
+    return `<div class="model-workspace" data-container="0">
+      ${count===0 ? '<div class="blk-empty canvas-empty">从左侧拖入组件，或点击组件添加到画布</div>' : block.children.map(c => renderBlock(c,0)).join('')}
+    </div>`;
+  }
+
+  const def = DEFS[block.type];
+  if (!def) return '';
+
+  if (containerTypes.has(block.type)) {
+    // Container block
+    const count = block.children ? block.children.length : 0;
+    const isSel = selectedBlockId === block.id;
+    const isCol = block.collapsed;
+    const isTop = depth === 0;
+    const posStyle = isTop ? `left:${block.x||48}px;top:${block.y||48}px;` : `margin-left:${depth*0}px`;
+    const badge = block.type === 'for_loop' ? '× ' + (block.params.iterations||1) : (count+' 块');
+    const icon = block.type === 'for_loop' ? '🔄' : block.type === 'residual' ? '🔀' : '📁';
+    return `<div class="blk-container${isTop?' top-block':''}${isSel?' selected':''}${isCol?' collapsed':''}" data-bid="${block.id}" style="${posStyle}">
+      <div class="blk-hd" style="background:${def.color}" data-bid="${block.id}" title="拖动容器；右键打开菜单">
+        ${icon} ${getBlockTitle(block)}
+        <span class="blk-badge">${badge}</span>
+        <span class="blk-collapse">▼</span>
+      </div>
+      <div class="blk-body" data-container="${block.id}">
+        ${(!block.children||block.children.length===0) ? '<div class="blk-empty">拖放组件到此处</div>' : block.children.map(c => renderBlock(c, depth+1)).join('')}
+      </div>
+    </div>`;
+  }
+
+  // Leaf block
+  const pstr = paramsStr(block.type, block.params);
+  const isSel = selectedBlockId === block.id;
+  const isTop = depth === 0;
+  const posStyle = isTop ? `left:${block.x||48}px;top:${block.y||48}px;` : '';
+  return `<div class="blk-leaf${isTop?' top-block':''}${isSel?' selected':''}" data-bid="${block.id}" draggable="false" style="${posStyle}">
+    <span class="leaf-color" style="background:${def.color}"></span>
+    <span class="leaf-name">${getBlockTitle(block)}</span>
+    <span class="leaf-params">${pstr}</span>
+    <span class="leaf-actions">
+      <button class="btn btn-o btn-sm" style="padding:1px 6px;font-size:10px" data-action="edit" data-bid="${block.id}">✎</button>
+      <button class="btn btn-d btn-sm" style="padding:1px 6px;font-size:10px" data-action="delete" data-bid="${block.id}">✕</button>
+    </span>
+  </div>`;
+}
+
+function renderModel() {
+  canvas.innerHTML = renderBlock(model, 0);
+  renderConnections();
+  bindCanvasEvents();
+  renderInspector();
+  updateHistoryButtons();
+}
+
+function connectionAnchor(blockId, side) {
+  const el = canvas.querySelector('[data-bid="'+blockId+'"]');
+  if (!el || !el.classList.contains('top-block')) return null;
+  const cr = canvas.getBoundingClientRect();
+  const r = el.getBoundingClientRect();
+  return {
+    x: (side === 'out' ? r.right : r.left) - cr.left,
+    y: r.top + r.height / 2 - cr.top
+  };
+}
+
+function connectionPath(from, to) {
+  const dx = Math.abs(to.x - from.x);
+  const cp = Math.max(80, dx * 0.45);
+  if (from.x > to.x) {
+    const my = Math.min(from.y, to.y) - 70;
+    return 'M'+from.x+' '+from.y+' C'+(from.x+60)+' '+from.y+', '+(from.x+60)+' '+my+', '+((from.x+to.x)/2)+' '+my+' C'+(to.x-60)+' '+my+', '+(to.x-60)+' '+to.y+', '+to.x+' '+to.y;
+  }
+  return 'M'+from.x+' '+from.y+' C'+(from.x+cp)+' '+from.y+', '+(to.x-cp)+' '+to.y+', '+to.x+' '+to.y;
+}
+
+function renderConnections() {
+  canvas.querySelectorAll('.conn-svg').forEach(svg => svg.remove());
+  if (!model.connections) model.connections = [];
+  model.connections = model.connections.filter(c => isTopLevelBlock(c.from) && isTopLevelBlock(c.to));
+  if (model.connections.length === 0) return;
+
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('class', 'conn-svg');
+  svg.setAttribute('width', canvas.scrollWidth);
+  svg.setAttribute('height', canvas.scrollHeight);
+  svg.innerHTML = '<defs><marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,1 L10,5 L0,9 Z" fill="#6c5ce7"/></marker></defs>';
+  model.connections.forEach((c, idx) => {
+    const from = connectionAnchor(c.from, 'out');
+    const to = connectionAnchor(c.to, 'in');
+    if (!from || !to) return;
+    const d = connectionPath(from, to);
+    svg.innerHTML += '<path d="'+d+'" class="hit" data-cidx="'+idx+'" style="stroke:transparent;stroke-width:14;fill:none;pointer-events:stroke;cursor:pointer"/>';
+    svg.innerHTML += '<path d="'+d+'" class="line" style="stroke:#6c5ce7;stroke-width:2.2;fill:none;pointer-events:none;marker-end:url(#arr)"/>';
+  });
+  canvas.appendChild(svg);
+  svg.querySelectorAll('.hit').forEach(h => {
+    h.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const cidx = parseInt(this.dataset.cidx);
+      if (confirm('删除此连接？')) {
+        model.connections.splice(cidx, 1);
+        renderModel(); commitState();
+      }
+    });
+  });
+}
+
+function scheduleConnectionRender() {
+  if (connectionRenderPending) return;
+  connectionRenderPending = true;
+  requestAnimationFrame(() => {
+    connectionRenderPending = false;
+    renderConnections();
+  });
+}
+
+function drawTempConnection(clientX, clientY) {
+  const el = blockElement(connectFrom.blockId);
+  if (!el) return;
+  const r = el.getBoundingClientRect();
+  const from = { x: r.right, y: r.top + r.height / 2 };
+  const to = { x: clientX, y: clientY };
+  tempConn.querySelector('svg').innerHTML =
+    '<defs><marker id="arr-temp" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,1 L10,5 L0,9 Z" fill="#6c5ce7"/></marker></defs>' +
+    '<path d="'+connectionPath(from, to)+'" stroke="#6c5ce7" stroke-width="2.4" fill="none" stroke-dasharray="6,3" marker-end="url(#arr-temp)"/>';
+}
+
+// ============================================================
+// CANVAS EVENT BINDING
+// ============================================================
+function bindCanvasEvents() {
+  // Click anywhere on a block to select it
+  canvas.querySelectorAll('[data-bid]').forEach(el => {
+    el.addEventListener('click', function(e) {
+      // Don't select if clicking action buttons
+      if (suppressBlockClick) return;
+      if (e.target.closest('[data-action]')) return;
+      const bid = parseInt(this.dataset.bid);
+      if (bid !== undefined) selectBlock(bid);
+    });
+  });
+
+  // Edit / Delete buttons on leaf blocks
+  canvas.querySelectorAll('[data-action="edit"]').forEach(el => {
+    el.onclick = function(e) { e.stopPropagation(); editBlockParams(parseInt(this.dataset.bid)); };
+  });
+  canvas.querySelectorAll('[data-action="delete"]').forEach(el => {
+    el.onclick = function(e) { e.stopPropagation(); deleteBlock(parseInt(this.dataset.bid)); };
+  });
+
+  // Right-click context menu
+  canvas.querySelectorAll('.blk-leaf,.blk-container').forEach(el => {
+    el.addEventListener('contextmenu', function(e) {
+      e.preventDefault(); e.stopPropagation();
+      const bid = parseInt(this.dataset.bid);
+      selectBlock(bid);
+      ctxBlockId = bid;
+      showCtxMenu(e.clientX, e.clientY);
+    });
+  });
+
+  // ---- Drag blocks around the canvas or between function containers ----
+  canvas.querySelectorAll('.blk-leaf,.blk-container').forEach(el => {
+    el.addEventListener('mousedown', function(e) {
+      if (e.button !== 0) return;
+      if (connectFrom) return;
+      if (e.target.closest('[data-action]')) return;
+      const directBody = this.classList.contains('blk-container') ? this.querySelector(':scope > .blk-body') : null;
+      if (directBody && directBody.contains(e.target)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const bid = parseInt(this.dataset.bid);
+      beginBlockDrag(bid, e);
+    });
+  });
+}
+
+function selectBlock(id) {
+  selectedBlockId = id;
+  // Update selection visuals
+  canvas.querySelectorAll('.blk-leaf.selected,.blk-container.selected').forEach(el => {
+    const bid = parseInt(el.dataset.bid);
+    if (bid !== id) el.classList.remove('selected');
+  });
+  const el = canvas.querySelector('[data-bid="' + id + '"]');
+  if (el) el.classList.add('selected');
+  renderInspector();
+}
+
+function renderInspector() {
+  if (!inspector) return;
+  const block = selectedBlockId !== null ? findBlock(selectedBlockId) : null;
+  if (!block || block.id === 0) {
+    inspector.innerHTML = `
+      <div class="ins-head">
+        <div class="ins-kicker">Model</div>
+        <div class="ins-title">${escapeHtml(model.name || 'Untitled Model')}</div>
+      </div>
+      <div class="ins-section">
+        <h4>模型信息</h4>
+        <div class="ins-field">
+          <label>模型名称</label>
+          <input id="ins-model-name" value="${escapeAttr(model.name || '')}" placeholder="Untitled Model">
+        </div>
+        <div class="ins-meta">顶层节点：${model.children.length}<br>顶层连接：${(model.connections || []).length}<br>容器内部按从上到下顺序执行。</div>
+      </div>
+      <div class="ins-empty" style="height:auto;margin-top:28px">选择一个模型块或容器后，可以编辑名称、参数和画布位置。</div>
+    `;
+    const modelName = inspector.querySelector('#ins-model-name');
+    if (modelName) {
+      modelName.addEventListener('change', e => {
+        model.name = e.target.value.trim() || undefined;
+        renderInspector();
+        commitState();
+      });
+    }
+    return;
+  }
+
+  const def = DEFS[block.type] || { name:block.type, params:{} };
+  const parent = findParent(block.id);
+  const scope = parent === model ? '画布顶层节点，可用箭头连接' : '容器内部节点，按自上而下顺序执行';
+  const params = Object.assign({}, def.params || {}, block.params || {});
+  const paramRows = Object.entries(params).map(([key, value]) => `
+    <div class="ins-field">
+      <label>${escapeHtml(key)}</label>
+      <input data-ins-param="${escapeAttr(key)}" value="${escapeAttr(paramInputValue(value))}">
+    </div>
+  `).join('') || '<div class="ins-meta">这个块没有可配置参数。</div>';
+
+  const posRows = parent === model ? `
+    <div class="ins-section">
+      <h4>画布位置</h4>
+      <div class="f-row" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0">
+        <div class="ins-field"><label>X</label><input data-ins-pos="x" value="${Math.round(block.x || 0)}"></div>
+        <div class="ins-field"><label>Y</label><input data-ins-pos="y" value="${Math.round(block.y || 0)}"></div>
+      </div>
+    </div>
+  ` : '';
+
+  const childInfo = containerTypes.has(block.type)
+    ? `<br>子块数量：${(block.children || []).length}`
+    : '';
+  const connInfo = parent === model
+    ? `<br>输出连接：${(model.connections || []).filter(c => c.from === block.id).length}，输入连接：${(model.connections || []).filter(c => c.to === block.id).length}`
+    : '';
+
+  inspector.innerHTML = `
+    <div class="ins-head">
+      <div class="ins-kicker">${escapeHtml(def.name)}</div>
+      <div class="ins-title">${escapeHtml(getBlockTitle(block))}</div>
+    </div>
+    <div class="ins-section">
+      <h4>基本信息</h4>
+      <div class="ins-field">
+        <label>显示名称</label>
+        <input id="ins-label" value="${escapeAttr(block.label || '')}" placeholder="${escapeAttr(def.name)}">
+      </div>
+      <div class="ins-meta">ID：${block.id}<br>类型：${escapeHtml(block.type)}<br>${scope}${childInfo}${connInfo}</div>
+    </div>
+    ${posRows}
+    <div class="ins-section">
+      <h4>参数</h4>
+      ${paramRows}
+    </div>
+  `;
+
+  const labelInput = inspector.querySelector('#ins-label');
+  if (labelInput) {
+    labelInput.addEventListener('change', e => {
+      const current = findBlock(selectedBlockId);
+      if (!current) return;
+      current.label = e.target.value.trim() || undefined;
+      renderModel();
+      commitState();
+    });
+  }
+
+  inspector.querySelectorAll('[data-ins-param]').forEach(input => {
+    input.addEventListener('change', e => {
+      const current = findBlock(selectedBlockId);
+      if (!current) return;
+      const key = e.target.dataset.insParam;
+      const oldValue = current.params ? current.params[key] : undefined;
+      if (!current.params) current.params = {};
+      current.params[key] = parseParamValue(e.target.value, oldValue);
+      renderModel();
+      commitState();
+    });
+  });
+
+  inspector.querySelectorAll('[data-ins-pos]').forEach(input => {
+    input.addEventListener('change', e => {
+      const current = findBlock(selectedBlockId);
+      if (!current || findParent(current.id) !== model) return;
+      const axis = e.target.dataset.insPos;
+      const n = Number(e.target.value);
+      if (Number.isNaN(n)) return;
+      current[axis] = Math.max(8, n);
+      renderModel();
+      commitState();
+    });
+  });
+}
+
+// ============================================================
+// BLOCK OPERATIONS
+// ============================================================
+function createBlock(type) {
+  const def = DEFS[type]; if (!def) return;
+  const block = {
+    id: ++blockIdCounter,
+    type: type,
+    params: JSON.parse(JSON.stringify(def.params)),
+    collapsed: false
+  };
+  if (containerTypes.has(type)) block.children = [];
+  return block;
+}
+
+function addBlock(type, containerId) {
+  const container = findBlock(containerId);
+  if (!container || !container.children) return;
+
+  const block = createBlock(type);
+  if (!block) return;
+  if (containerId === 0) {
+    const i = container.children.length;
+    block.x = 48 + (i % 4) * 380;
+    block.y = 48 + Math.floor(i / 4) * 180;
+  }
+
+  container.children.push(block);
+  selectBlock(block.id);
+  renderModel();
+  commitState();
+}
+
+function addBlockAt(type, containerId, insertIdx, x=null, y=null) {
+  const container = findBlock(containerId);
+  if (!container || !container.children) return;
+
+  const block = createBlock(type);
+  if (!block) return;
+  if (containerId === 0) {
+    block.x = Math.max(8, x ?? 48);
+    block.y = Math.max(8, y ?? 48);
+  }
+
+  const idx = Math.max(0, Math.min(insertIdx ?? container.children.length, container.children.length));
+  container.children.splice(idx, 0, block);
+  selectedBlockId = block.id;
+  renderModel();
+  commitState();
+}
+
+function collectBlockIds(block, ids=new Set()) {
+  ids.add(block.id);
+  if (block.children) block.children.forEach(child => collectBlockIds(child, ids));
+  return ids;
+}
+
+function isDescendant(parentBlock, maybeChildId) {
+  if (!parentBlock || !parentBlock.children) return false;
+  for (const child of parentBlock.children) {
+    if (child.id === maybeChildId || isDescendant(child, maybeChildId)) return true;
+  }
+  return false;
+}
+
+function deleteBlock(id) {
+  if (id === 0) return; // can't delete root
+  const block = findBlock(id);
+  const parent = findParent(id);
+  if (!parent) return;
+  const deletedIds = block ? collectBlockIds(block) : new Set([id]);
+  parent.children = parent.children.filter(c => c.id !== id);
+  if (model.connections) {
+    model.connections = model.connections.filter(c => !deletedIds.has(c.from) && !deletedIds.has(c.to));
+  }
+  if (selectedBlockId === id) selectedBlockId = null;
+  renderModel();
+  commitState();
+}
+
+function editBlockParams(id) {
+  const block = findBlock(id);
+  if (!block) return;
+  const p = prompt('编辑参数 (JSON):', JSON.stringify(block.params));
+  if (p) {
+    try { block.params = JSON.parse(p); renderModel(); commitState(); }
+    catch(ex) { alert('JSON 格式错误'); }
+  }
+}
+
+function findContainerForDrop(x, y) {
+  // Prefer the deepest container body under the pointer.
+  const bodies = Array.from(canvas.querySelectorAll('.model-workspace,.blk-body')).reverse();
+  for (const body of bodies) {
+    const r = body.getBoundingClientRect();
+    if (x >= r.left && x <= r.right && y >= r.top && y <= r.bottom) {
+      const cid = parseInt(body.dataset.container);
+      if (dragBlockId !== null) {
+        const movingBlock = findBlock(dragBlockId);
+        if (cid === dragBlockId || isDescendant(movingBlock, cid)) continue;
+      }
+      return cid;
+    }
+  }
+  return null;
+}
+
+function getInsertIndex(containerId, y, movingBlockId=null) {
+  const container = findBlock(containerId);
+  const bodyEl = canvas.querySelector('[data-container="'+containerId+'"]');
+  if (!container || !container.children || !bodyEl) return container?.children?.length || 0;
+
+  let insertIdx = container.children.length;
+  const childEls = bodyEl.querySelectorAll(':scope > .blk-leaf, :scope > .blk-container');
+  childEls.forEach((child, i) => {
+    const bid = parseInt(child.dataset.bid);
+    if (movingBlockId !== null && bid === movingBlockId) return;
+    const sr = child.getBoundingClientRect();
+    if (y > sr.top + sr.height/2) insertIdx = i + 1;
+    else if (insertIdx === container.children.length) insertIdx = i;
+  });
+  return insertIdx;
+}
+
+function canvasPoint(clientX, clientY) {
+  const r = canvas.getBoundingClientRect();
+  return {
+    x: Math.max(8, clientX - r.left),
+    y: Math.max(8, clientY - r.top)
+  };
+}
+
+function blockElement(id) {
+  return canvas.querySelector('[data-bid="'+id+'"]');
+}
+
+function beginBlockDrag(id, e) {
+  const block = findBlock(id);
+  const parent = findParent(id);
+  if (!block || !parent) return;
+
+  selectBlock(id);
+  dragBlockId = id;
+  dragStart = { x:e.clientX, y:e.clientY };
+  dragOrigin = {
+    x: typeof block.x === 'number' ? block.x : canvasPoint(e.clientX, e.clientY).x,
+    y: typeof block.y === 'number' ? block.y : canvasPoint(e.clientX, e.clientY).y
+  };
+  dragMode = parent === model ? 'move' : 'reorder';
+
+  const def = DEFS[block.type];
+  dragGhost.textContent = getBlockTitle(block);
+  dragGhost.style.background = def?.color || '#666';
+  dragGhost.style.left = (e.clientX + 10) + 'px';
+  dragGhost.style.top = (e.clientY + 10) + 'px';
+  dragGhost.classList.toggle('hide', dragMode === 'move');
+  blockElement(id)?.classList.add('dragging');
+}
+
+function addConnection(fromId, toId) {
+  if (fromId === toId || !isTopLevelBlock(fromId) || !isTopLevelBlock(toId)) return;
+  if (!model.connections) model.connections = [];
+  const exists = model.connections.some(c => c.from === fromId && c.to === toId);
+  if (!exists) model.connections.push({ from: fromId, to: toId });
+  renderModel();
+  commitState();
+}
+
+// ============================================================
+// CONTEXT MENU
+// ============================================================
+function showCtxMenu(x, y) {
+  const block = findBlock(ctxBlockId);
+  const isContainer = block && containerTypes.has(block.type);
+  ctxMenu.innerHTML = '';
+  if (ctxBlockId !== 0 && isTopLevelBlock(ctxBlockId)) {
+    ctxMenu.innerHTML += '<div class="ctx-item" onclick="ctxStartConnect()">↗ 输出连接</div>';
+  }
+  if (isContainer) {
+    ctxMenu.innerHTML += '<div class="ctx-item" onclick="ctxToggle()">📂 ' + (block.collapsed?'展开':'折叠') + '</div>';
+    ctxMenu.innerHTML += '<div class="ctx-item" onclick="ctxRename()">✎ 容器改名</div>';
+    ctxMenu.innerHTML += '<div class="ctx-item" onclick="ctxAddInside()">➕ 添加子模块</div>';
+  }
+  ctxMenu.innerHTML += '<div class="ctx-item" onclick="ctxEdit()">⚙️ 编辑参数</div>';
+  if (ctxBlockId !== 0) {
+    ctxMenu.innerHTML += '<div class="ctx-item danger" onclick="ctxDelete()">🗑️ 删除</div>';
+  }
+  ctxMenu.style.display = 'block';
+  ctxMenu.style.left = x + 'px';
+  ctxMenu.style.top = y + 'px';
+}
+function ctxToggle() { const b = findBlock(ctxBlockId); if (b) { b.collapsed = !b.collapsed; renderModel(); commitState(); } ctxMenu.style.display='none'; }
+function ctxEdit() { editBlockParams(ctxBlockId); ctxMenu.style.display='none'; }
+function ctxDelete() { deleteBlock(ctxBlockId); ctxMenu.style.display='none'; }
+function ctxStartConnect() {
+  if (ctxBlockId !== null && isTopLevelBlock(ctxBlockId)) {
+    connectFrom = { blockId: ctxBlockId };
+    tempConn.classList.remove('hide');
+  }
+  ctxMenu.style.display='none';
+}
+function ctxRename() {
+  const block = findBlock(ctxBlockId);
+  if (!block || !containerTypes.has(block.type)) return;
+  const name = prompt('容器名称:', block.label || DEFS[block.type].name);
+  if (name !== null) {
+    block.label = name.trim() || undefined;
+    renderModel();
+    commitState();
+  }
+  ctxMenu.style.display='none';
+}
+function ctxAddInside() {
+  // Quick add: show a small prompt for type
+  const type = prompt('输入模块类型 (如: linear, relu, dropout):');
+  if (type && DEFS[type]) {
+    addBlock(type, ctxBlockId);
+  }
+  ctxMenu.style.display='none';
+}
+document.addEventListener('click', e => {
+  if (connectFrom && !e.target.closest('.ctx-menu')) {
+    const target = e.target.closest('.top-block[data-bid]');
+    if (target) {
+      addConnection(connectFrom.blockId, parseInt(target.dataset.bid));
+    }
+    connectFrom = null;
+    tempConn.classList.add('hide');
+    tempConn.querySelector('svg').innerHTML = '';
+  }
+  if (!e.target.closest('.ctx-menu')) { ctxMenu.style.display = 'none'; ctxBlockId = null; }
+});
+
+// ============================================================
+// GLOBAL MOUSE EVENTS (drag & connection)
+// ============================================================
+document.addEventListener('mousemove', function(e) {
+  if (panning) {
+    const wrap = document.getElementById('mb-canvas-wrap');
+    wrap.scrollLeft = panning.scrollLeft - (e.clientX - panning.x);
+    wrap.scrollTop = panning.scrollTop - (e.clientY - panning.y);
+  }
+  if (paletteDragType) {
+    const dx = Math.abs(e.clientX - paletteDragStart.x);
+    const dy = Math.abs(e.clientY - paletteDragStart.y);
+    if (dx + dy > 4) paletteDragMoved = true;
+    dragGhost.style.left = (e.clientX + 10) + 'px';
+    dragGhost.style.top = (e.clientY + 10) + 'px';
+    const cid = findContainerForDrop(e.clientX, e.clientY);
+    canvas.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (cid !== null) {
+      const body = canvas.querySelector('[data-container="' + cid + '"]');
+      const box = body ? body.closest('.blk-container') : null;
+      if (box) box.classList.add('drag-over');
+    }
+  }
+  if (dragBlockId) {
+    const dx = e.clientX - dragStart.x;
+    const dy = e.clientY - dragStart.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) suppressBlockClick = true;
+    dragGhost.style.left = (e.clientX + 10) + 'px';
+    dragGhost.style.top = (e.clientY + 10) + 'px';
+    const cid = findContainerForDrop(e.clientX, e.clientY);
+    canvas.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (dragMode === 'move') {
+      const block = findBlock(dragBlockId);
+      const el = blockElement(dragBlockId);
+      if (block && el) {
+        block.x = Math.max(8, dragOrigin.x + dx);
+        block.y = Math.max(8, dragOrigin.y + dy);
+        el.style.left = block.x + 'px';
+        el.style.top = block.y + 'px';
+        scheduleConnectionRender();
+      }
+    }
+    if (cid !== null && cid !== 0 && cid !== dragBlockId && !isDescendant(findBlock(dragBlockId), cid)) {
+      const body = canvas.querySelector('[data-container="' + cid + '"]');
+      const box = body ? body.closest('.blk-container') : null;
+      if (box) box.classList.add('drag-over');
+    }
+  }
+  if (connectFrom) {
+    drawTempConnection(e.clientX, e.clientY);
+  }
+});
+
+document.addEventListener('mouseup', function(e) {
+  if (panning) {
+    document.getElementById('mb-canvas-wrap').classList.remove('panning');
+    panning = null;
+  }
+  if (paletteDragType) {
+    dragGhost.classList.add('hide');
+    canvas.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    if (paletteDragMoved) {
+      const cid = findContainerForDrop(e.clientX, e.clientY);
+      if (cid !== null) {
+        if (cid === 0) {
+          const p = canvasPoint(e.clientX, e.clientY);
+          addBlockAt(paletteDragType, 0, null, p.x - 170, p.y - 18);
+        } else {
+          addBlockAt(paletteDragType, cid, getInsertIndex(cid, e.clientY));
+        }
+      }
+    }
+    setTimeout(() => { paletteDragType = null; paletteDragMoved = false; paletteDragStart = null; }, 0);
+  }
+  if (dragBlockId) {
+    dragGhost.classList.add('hide');
+    canvas.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    const cid = findContainerForDrop(e.clientX, e.clientY);
+    const block = findBlock(dragBlockId);
+    const oldParent = findParent(dragBlockId);
+    if (block && oldParent && cid !== null) {
+      const newParent = findBlock(cid);
+      const movingIntoFunction = cid !== 0 && cid !== dragBlockId && !isDescendant(block, cid);
+      if (dragMode === 'move' && movingIntoFunction && newParent && newParent.children) {
+        let insertIdx = getInsertIndex(cid, e.clientY, dragBlockId);
+        oldParent.children = oldParent.children.filter(c => c.id !== dragBlockId);
+        delete block.x; delete block.y;
+        insertIdx = Math.max(0, Math.min(insertIdx, newParent.children.length));
+        newParent.children.splice(insertIdx, 0, block);
+        const movedIds = collectBlockIds(block);
+        model.connections = (model.connections || []).filter(c => !movedIds.has(c.from) && !movedIds.has(c.to));
+        renderModel();
+        commitState();
+      } else if (dragMode === 'reorder') {
+        if (cid === 0) {
+          oldParent.children = oldParent.children.filter(c => c.id !== dragBlockId);
+          const p = canvasPoint(e.clientX, e.clientY);
+          block.x = p.x - 170;
+          block.y = p.y - 18;
+          model.children.push(block);
+          renderModel();
+          commitState();
+        } else if (newParent && newParent.children && !isDescendant(block, cid)) {
+          let insertIdx = getInsertIndex(cid, e.clientY, dragBlockId);
+          const oldIdx = oldParent.children.findIndex(c => c.id === dragBlockId);
+          oldParent.children = oldParent.children.filter(c => c.id !== dragBlockId);
+          if (oldParent === newParent && insertIdx > oldIdx) insertIdx--;
+          insertIdx = Math.max(0, Math.min(insertIdx, newParent.children.length));
+          newParent.children.splice(insertIdx, 0, block);
+          renderModel();
+          commitState();
+        }
+      } else {
+        commitState();
+      }
+    }
+    if (dragMode === 'move') commitState();
+    blockElement(dragBlockId)?.classList.remove('dragging');
+    dragBlockId = null;
+    dragStart = null;
+    dragOrigin = null;
+    dragMode = null;
+    setTimeout(() => { suppressBlockClick = false; }, 0);
+  }
+});
+
+// Keyboard
+document.addEventListener('keydown', function(e) {
+  if (!document.getElementById('model-builder').classList.contains('show')) return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+    e.preventDefault();
+    if (e.shiftKey) redoHistory(); else undoHistory();
+    return;
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+    e.preventDefault();
+    redoHistory();
+    return;
+  }
+  if (e.key === 'Escape' && connectFrom) {
+    connectFrom = null;
+    tempConn.classList.add('hide');
+    tempConn.querySelector('svg').innerHTML = '';
+    return;
+  }
+  if (e.key === 'Delete' && selectedBlockId !== null && selectedBlockId !== 0) {
+    deleteBlock(selectedBlockId);
+  }
+  if (e.key === 'Escape') closeModelBuilder();
+});
+
+document.getElementById('mb-canvas-wrap').addEventListener('mousedown', function(e) {
+  if (e.button !== 0 || connectFrom) return;
+  if (e.target.closest('.blk-leaf,.blk-container,.ctx-menu,.conn-svg')) return;
+  selectedBlockId = null;
+  canvas.querySelectorAll('.blk-leaf.selected,.blk-container.selected').forEach(el => el.classList.remove('selected'));
+  renderInspector();
+  panning = {
+    x:e.clientX,
+    y:e.clientY,
+    scrollLeft:this.scrollLeft,
+    scrollTop:this.scrollTop
+  };
+  this.classList.add('panning');
+});
+
+// ============================================================
+// PALETTE
+// ============================================================
+document.getElementById('mb-palette').addEventListener('click', function(e) {
+  const item = e.target.closest('.pal-item');
+  if (!item) return;
+  if (paletteDragMoved) return;
+  const type = item.dataset.type;
+  // Add to selected container (or root)
+  const targetContainer = selectedBlockId !== null && containerTypes.has(findBlock(selectedBlockId)?.type)
+    ? selectedBlockId : 0;
+  addBlock(type, targetContainer);
+});
+
+document.getElementById('mb-palette').addEventListener('mousedown', function(e) {
+  const item = e.target.closest('.pal-item');
+  if (!item || e.button !== 0) return;
+  const type = item.dataset.type;
+  const def = DEFS[type];
+  if (!def) return;
+  paletteDragType = type;
+  paletteDragMoved = false;
+  paletteDragStart = { x:e.clientX, y:e.clientY };
+  dragGhost.textContent = def.name;
+  dragGhost.classList.remove('hide');
+  dragGhost.style.left = (e.clientX + 10) + 'px';
+  dragGhost.style.top = (e.clientY + 10) + 'px';
+  dragGhost.style.background = def.color || '#666';
+});
+
+// ============================================================
+// MODEL BUILDER OPEN/CLOSE
+// ============================================================
+function openModelBuilder() {
+  document.getElementById('model-builder').classList.add('show');
+  document.body.style.overflow = 'hidden';
+  restoreState();
+}
+function closeModelBuilder() {
+  saveState();
+  document.getElementById('model-builder').classList.remove('show');
+  document.body.style.overflow = '';
+}
+document.getElementById('mb-back-btn').addEventListener('click', closeModelBuilder);
+
+function saveState() {
+  try { sessionStorage.setItem(STORAGE_KEY, JSON.stringify({model, blockIdCounter})); } catch(e) {}
+}
+
+function stateSnapshot() {
+  return JSON.stringify({ model, blockIdCounter });
+}
+
+function applySnapshot(snapshot) {
+  const s = JSON.parse(snapshot);
+  model = normalizeModel(s.model);
+  blockIdCounter = Math.max(s.blockIdCounter || 0, maxBlockId(model));
+  if (selectedBlockId !== null && !findBlock(selectedBlockId)) selectedBlockId = null;
+  saveState();
+  renderModel();
+}
+
+function resetHistory() {
+  historyStack = [stateSnapshot()];
+  historyIndex = 0;
+  updateHistoryButtons();
+}
+
+function commitState() {
+  const snapshot = stateSnapshot();
+  if (historyStack[historyIndex] !== snapshot) {
+    historyStack = historyStack.slice(0, historyIndex + 1);
+    historyStack.push(snapshot);
+    if (historyStack.length > HISTORY_LIMIT) historyStack.shift();
+    historyIndex = historyStack.length - 1;
+  }
+  saveState();
+  updateHistoryButtons();
+}
+
+function undoHistory() {
+  if (historyIndex <= 0) return;
+  historyIndex--;
+  applySnapshot(historyStack[historyIndex]);
+  updateHistoryButtons();
+}
+
+function redoHistory() {
+  if (historyIndex >= historyStack.length - 1) return;
+  historyIndex++;
+  applySnapshot(historyStack[historyIndex]);
+  updateHistoryButtons();
+}
+
+function updateHistoryButtons() {
+  const undoBtn = document.getElementById('btn-undo');
+  const redoBtn = document.getElementById('btn-redo');
+  if (undoBtn) undoBtn.disabled = historyIndex <= 0;
+  if (redoBtn) redoBtn.disabled = historyIndex < 0 || historyIndex >= historyStack.length - 1;
+}
+
+function normalizeModel(rawModel) {
+  const normalized = rawModel && rawModel.type === 'root'
+    ? rawModel
+    : { id:0, type:'root', children:[], collapsed:false, params:{} };
+  if (!Array.isArray(normalized.children)) normalized.children = [];
+  if (!Array.isArray(normalized.connections)) normalized.connections = [];
+  return normalized;
+}
+
+function maxBlockId(block, max=0) {
+  max = Math.max(max, Number(block.id) || 0);
+  if (block.children) block.children.forEach(child => { max = maxBlockId(child, max); });
+  return max;
+}
+
+function restoreState() {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const s = JSON.parse(raw);
+      model = normalizeModel(s.model);
+      blockIdCounter = Math.max(s.blockIdCounter || 0, maxBlockId(model));
+    }
+  } catch(e) {
+    model = { id:0, type:'root', children:[], collapsed:false, params:{}, connections:[] };
+    blockIdCounter = 0;
+  }
+  model = normalizeModel(model);
+  selectedBlockId = null; dragBlockId = null; paletteDragType = null; connectFrom = null;
+  renderModel();
+  resetHistory();
+}
+
+// ============================================================
+// EXPORT / IMPORT / CLEAR
+// ============================================================
+function serializeNode(block, topLevel=false) {
+  const def = DEFS[block.type] || { name:block.type };
+  const node = {
+    id: block.id,
+    type: block.type,
+    name: block.label || def.name,
+    params: block.params || {}
+  };
+  if (topLevel) node.position = { x:block.x || 48, y:block.y || 48 };
+  if (containerTypes.has(block.type)) {
+    node.execution = 'sequence';
+    node.children = (block.children || []).map(child => serializeNode(child, false));
+  }
+  return node;
+}
+
+function toModelDefinition() {
+  return {
+    format: EXPORT_FORMAT,
+    version: EXPORT_VERSION,
+    name: model.name || 'Untitled Model',
+    description: 'Graph nodes are connected by arrows. Container children execute from top to bottom.',
+    graph: {
+      nodes: model.children.map(child => serializeNode(child, true)),
+      connections: (model.connections || [])
+        .filter(c => isTopLevelBlock(c.from) && isTopLevelBlock(c.to))
+        .map(c => ({ from:c.from, to:c.to }))
+    }
+  };
+}
+
+function deserializeNode(node) {
+  const def = DEFS[node.type] || { params:{} };
+  const block = {
+    id: Number(node.id) || ++blockIdCounter,
+    type: node.type,
+    params: Object.assign({}, def.params || {}, node.params || {}),
+    collapsed: !!node.collapsed
+  };
+  if (node.name && node.name !== def.name) block.label = node.name;
+  const pos = node.position || {};
+  if (typeof pos.x === 'number') block.x = pos.x;
+  if (typeof pos.y === 'number') block.y = pos.y;
+  if (containerTypes.has(block.type)) {
+    block.children = (node.children || []).map(deserializeNode);
+  }
+  return block;
+}
+
+function modelFromDefinition(cfg) {
+  if (cfg && cfg.format === EXPORT_FORMAT && cfg.graph) {
+    return normalizeModel({
+      id:0,
+      type:'root',
+      name:cfg.name,
+      children:(cfg.graph.nodes || []).map(deserializeNode),
+      collapsed:false,
+      params:{},
+      connections:cfg.graph.connections || []
+    });
+  }
+  if (cfg && Array.isArray(cfg.nodes)) {
+    return normalizeModel({
+      id:0,
+      type:'root',
+      children:cfg.nodes.map(node => {
+        const block = deserializeNode({
+          id:node.id,
+          type:node.type,
+          name:node.label,
+          params:node.params,
+          position:node.position || { x:node.x, y:node.y },
+          children:node.children || []
+        });
+        return block;
+      }),
+      collapsed:false,
+      params:{},
+      connections:cfg.connections || []
+    });
+  }
+  return null;
+}
+
+function exportModel() {
+  const json = JSON.stringify(toModelDefinition(), null, 2);
+  const blob = new Blob([json], { type:'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'model_definition.json'; a.click();
+}
+function importModel() {
+  const inp = document.createElement('input'); inp.type = 'file'; inp.accept = '.json';
+  inp.onchange = e => {
+    const file = e.target.files[0]; if (!file) return;
+    const r = new FileReader();
+    r.onload = () => {
+      try {
+        const cfg = JSON.parse(r.result);
+        const formalModel = modelFromDefinition(cfg);
+        if (formalModel) {
+          model = formalModel;
+          blockIdCounter = maxBlockId(model);
+          selectedBlockId = null; renderModel(); saveState(); resetHistory();
+        } else if (cfg.model) {
+          model = normalizeModel(cfg.model);
+          blockIdCounter = Math.max(cfg.blockIdCounter || 0, maxBlockId(model));
+          selectedBlockId = null; renderModel(); saveState(); resetHistory();
+        } else if (cfg.type === 'root') {
+          model = normalizeModel(cfg);
+          blockIdCounter = maxBlockId(model);
+          selectedBlockId = null; renderModel(); saveState(); resetHistory();
+        } else {
+          alert('未找到可加载的模型数据');
+        }
+      } catch(ex) { alert('文件格式错误'); }
+    };
+    r.readAsText(file);
+  };
+  inp.click();
+}
+function clearModel() {
+  if (confirm('确认清空模型？此操作不可恢复。')) {
+    model = { id:0, type:'root', children:[], collapsed:false, params:{}, connections:[] };
+    blockIdCounter = 0; selectedBlockId = null; renderModel(); commitState();
+  }
+}
+
+// ============================================================
+// LOSS / TRAIN / TEST (unchanged)
+// ============================================================
+function selectLoss(el) { document.querySelectorAll('.loss-card').forEach(c => c.classList.remove('sel')); el.classList.add('sel'); }
+let trainInterval=null, trainRunning=false, currentEpoch=0, elapsedSec=0, timerInt=null;
+function startTraining(){if(trainRunning)return;trainRunning=true;currentEpoch=0;elapsedSec=0;const total=parseInt(document.getElementById('epochs').value)||10;document.getElementById('btn-train').disabled=true;document.getElementById('btn-pause').disabled=false;document.getElementById('btn-stop').disabled=false;document.getElementById('progress-text').textContent='开始训练...';timerInt=setInterval(()=>{elapsedSec++;const m=String(Math.floor(elapsedSec/60)).padStart(2,'0');const s=String(elapsedSec%60).padStart(2,'0');document.getElementById('tr-time').textContent=m+':'+s},1000);trainInterval=setInterval(()=>{if(currentEpoch>=total){stopTraining();return}currentEpoch++;const pct=(currentEpoch/total)*100;const loss=(Math.random()*2*(1-currentEpoch/total)).toFixed(4);const acc=(50+Math.random()*45*(currentEpoch/total)).toFixed(2);document.getElementById('tr-epoch').textContent=currentEpoch;document.getElementById('tr-loss').textContent=loss;document.getElementById('tr-acc').textContent=acc+'%';document.getElementById('train-progress').style.width=pct+'%';document.getElementById('progress-text').textContent='Epoch '+currentEpoch+'/'+total+' — Loss: '+loss+' — Acc: '+acc+'%'},500)}
+function pauseTraining(){if(!trainRunning)return;trainRunning=false;clearInterval(trainInterval);clearInterval(timerInt);document.getElementById('btn-train').disabled=false;document.getElementById('btn-pause').disabled=true;document.getElementById('progress-text').textContent='已暂停'}
+function stopTraining(){trainRunning=false;clearInterval(trainInterval);clearInterval(timerInt);trainInterval=null;timerInt=null;document.getElementById('btn-train').disabled=false;document.getElementById('btn-pause').disabled=true;document.getElementById('btn-stop').disabled=true;document.getElementById('progress-text').textContent=currentEpoch>0?'训练完成，共 '+currentEpoch+' 个 epoch':'已停止'}
+function runTest(){const logCard=document.getElementById('test-log-card');const log=document.getElementById('test-log');logCard.style.display='block';log.textContent='Running test...\n';['acc','prec','recall','f1','loss','time'].forEach((m,i)=>{setTimeout(()=>{let val;if(m==='loss')val=(Math.random()*0.5+0.1).toFixed(4);else if(m==='time')val=(Math.random()*50+10).toFixed(1)+'ms';else val=(85+Math.random()*13).toFixed(2)+'%';const em={acc:'m-acc',prec:'m-prec',recall:'m-recall',f1:'m-f1',loss:'m-loss',time:'m-time'};const el=document.getElementById(em[m]);el.textContent=val;if(['acc','prec','recall','f1'].includes(m)){const num=parseFloat(val);el.className='metric '+(num>=90?'good':num>=75?'warn':'bad')}log.textContent+='['+m+'] '+val+'\n'},i*250)})}
+function exportResults(){const data={};['acc','prec','recall','f1','loss','time'].forEach(m=>{const em={acc:'m-acc',prec:'m-prec',recall:'m-recall',f1:'m-f1',loss:'m-loss',time:'m-time'};data[m]=document.getElementById(em[m]).textContent});const json=JSON.stringify({results:data,date:new Date().toISOString()},null,2);const blob=new Blob([json],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='test_results.json';a.click()}
+</script>
+</body>
+</html>

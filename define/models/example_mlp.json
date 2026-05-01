@@ -1,0 +1,23 @@
+{
+  "format": "ai-model-tool",
+  "version": "3.0",
+  "name": "example_mlp_classifier",
+  "description": "示例：MLP 分类器 (784 -> 256 -> 128 -> 10)",
+  "graph": {
+    "nodes": [
+      { "id": 1, "type": "linear", "name": "Input Projection", "params": { "in_features": 784, "out_features": 256 }, "position": { "x": 60, "y": 100 } },
+      { "id": 2, "type": "relu", "name": "ReLU", "params": {}, "position": { "x": 450, "y": 100 } },
+      { "id": 3, "type": "dropout", "name": "Dropout", "params": { "p": 0.3 }, "position": { "x": 840, "y": 100 } },
+      { "id": 4, "type": "linear", "name": "Hidden Projection", "params": { "in_features": 256, "out_features": 128 }, "position": { "x": 1230, "y": 100 } },
+      { "id": 5, "type": "relu", "name": "ReLU", "params": {}, "position": { "x": 450, "y": 300 } },
+      { "id": 6, "type": "linear", "name": "Classifier", "params": { "in_features": 128, "out_features": 10 }, "position": { "x": 840, "y": 300 } }
+    ],
+    "connections": [
+      { "from": 1, "to": 2 },
+      { "from": 2, "to": 3 },
+      { "from": 3, "to": 4 },
+      { "from": 4, "to": 5 },
+      { "from": 5, "to": 6 }
+    ]
+  }
+}
